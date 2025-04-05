@@ -48,7 +48,7 @@ async def get_data(
             return cache.message
         with DataDispatcher(topic_id, seq_id, seq_id) as dispatcher:
             return (await _get_data_no_cache(bot, dispatcher, topic_id, seq_id, seq_id))[0]
-    
+
     cache_segments = []
     start = None
     for i in range(low, hi+1):
@@ -86,12 +86,12 @@ class DataDispatcher(MessageDispatcher):
         self.low = low
         self.data = {}
         self._futures = WeakSet()
-    
-    def match(self, message: Message, /) -> float:
+
+    def match(self, message: Message, /, **kwargs) -> float:
         if message.topic == self.topic and self.low <= message.seq_id <= self.hi:
             return 3.0
         return 0
-    
+
     def run(self, message: Message) -> Any:
         self.data[message.seq_id] = message
         if len(self.data) >= self.hi - self.low + 1:
@@ -100,7 +100,7 @@ class DataDispatcher(MessageDispatcher):
                     continue
                 future.set_result(None)
             self.deactivate()
-    
+
     async def wait(self) -> List[Message]:
         if len(self.data) < self.hi - self.low + 1:
             future = asyncio.Future()

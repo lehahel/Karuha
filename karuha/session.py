@@ -64,7 +64,7 @@ class BaseSession(object):
             attachments: Optional[Iterable[str]] = None
     ) -> Optional[int]:
         """Send a message to the specified topic.
-        
+
         :param text: the text or Drafty model to send
         :type text: Union[str, dict, "Drafty", "BaseText"]
         :param head: additional metadata to include in the message, defaults to None
@@ -114,7 +114,7 @@ class BaseSession(object):
             **kwds: Any
     ) -> Optional[int]:
         """Send an attachment to the specified topic.
-        
+
         :param path: the path to the file to send
         :type path: Union[str, os.PathLike]
         :param name: the name of the file, defaults to None
@@ -183,7 +183,7 @@ class BaseSession(object):
             priority: float = 1.2
     ) -> "Message":
         """Wait for a reply from the specified topic.
-        
+
         :param topic: the topic to wait for, defaults to None
         :type topic: Optional[str], optional
         :param user_id: the user ID to wait for, defaults to None
@@ -215,7 +215,7 @@ class BaseSession(object):
         **kwds: Any,
     ) -> int:
         """Send a form to the specified topic.
-        
+
         :param title: the title of the form
         :type title: Union[str, "BaseText"]
         :param button: the buttons to include in the form
@@ -268,7 +268,7 @@ class BaseSession(object):
 
     async def confirm(self, title: Union[str, "BaseText"], **kwds: Any) -> bool:
         """A convenience method to send a form and wait for a reply.
-        
+
         :param title: the title of the form
         :type title: Union[str, "BaseText"]
         :return: True if the user selects "Yes", False otherwise
@@ -278,7 +278,7 @@ class BaseSession(object):
 
     async def finish(self, text: Union[str, dict, "Drafty", "BaseText"], /, **kwds: Any) -> NoReturn:
         """Finish the session and send a message to the user.
-        
+
         :param text: the message to send
         :type text: Union[str, dict, "Drafty", "BaseText"]
         :raises KaruhaRuntimeError: if the session is not active
@@ -295,7 +295,7 @@ class BaseSession(object):
         **kwds: Any
     ) -> None:
         """Subscribe to the specified topic.
-        
+
         :param topic: the topic to subscribe to, defaults to None
         :type topic: Optional[str], optional
         :param force: whether to force the subscription, defaults to False
@@ -311,7 +311,7 @@ class BaseSession(object):
 
     async def leave(self, topic: Optional[str] = None, *, force: bool = False, **kwds: Any) -> None:
         """Leave the specified topic.
-        
+
         :param topic: the topic to leave, defaults to None
         :type topic: Optional[str], optional
         :param force: whether to force the leave, defaults to False
@@ -325,7 +325,7 @@ class BaseSession(object):
     @deprecated("use `UserService` instead")
     async def get_user(self, user_id: str, *, skip_cache: bool = False) -> "karuha.data.BaseUser":
         """Get the user data from the specified user ID.
-        
+
         :param user_id: the user ID to get the data from
         :type user_id: str
         :param ensure_user: whether to ensure that the user exists, defaults to False
@@ -338,7 +338,7 @@ class BaseSession(object):
 
     async def get_topic(self, topic: Optional[str] = None, *, skip_cache: bool = False) -> "karuha.data.BaseTopic":
         """Get the topic data from the specified topic ID.
-        
+
         :param topic: the topic ID to get the data from, defaults to None
         :type topic: Optional[str], optional
         :param ensure_topic: whether to ensure that the topic exists, defaults to False
@@ -357,7 +357,7 @@ class BaseSession(object):
         seq_id: int,
     ) -> "Message":
         """Get the message data from the specified message ID.
-        
+
         :param topic: the topic ID to get the data from, defaults to None
         :type topic: Optional[str], optional
         :param seq_id: the message ID to get the data from
@@ -375,7 +375,7 @@ class BaseSession(object):
         hi: Optional[int] = None,
     ) -> List["Message"]:
         """Get the message data from the specified range.
-        
+
         :param topic: the topic ID to get the data from, defaults to None
         :type topic: Optional[str], optional
         :param low: the lower bound of the range, defaults to None
@@ -396,7 +396,7 @@ class BaseSession(object):
         hi: Optional[int] = None,
     ) -> Union["Message", List["Message"]]:
         """Get the message data from the specified range.
-        
+
         :param topic: the topic ID to get the data from, defaults to None
         :type topic: Optional[str], optional
         :param seq_id: the message ID to get the data from, defaults to None
@@ -490,8 +490,8 @@ class SessionDispatcher(MessageDispatcher, FutureDispatcher[Message]):
         self.topic = topic or session.topic
         self.user_id = user_id
         self.pattern = pattern
-    
-    def match(self, message: Message, /) -> float:
+
+    def match(self, message: Message, /, **kwargs) -> float:
         if message.topic != self.topic:
             return 0
         elif self.user_id and message.user_id != self.user_id:
@@ -504,7 +504,7 @@ class SessionDispatcher(MessageDispatcher, FutureDispatcher[Message]):
 
 class _ButtonReplyDispatcher(SessionDispatcher):
     __slots__ = ["seq_id", "_cache"]
-    
+
     def __init__(
             self,
             session: BaseSession,
@@ -519,9 +519,9 @@ class _ButtonReplyDispatcher(SessionDispatcher):
         super().__init__(session, future, priority=priority, user_id=user_id, topic=topic)
         self.seq_id = seq_id
         self._cache = {}
-        
-    def match(self, message: Message) -> float:
-        if super().match(message) < 0:
+
+    def match(self, message: Message, /, **kwargs) -> float:
+        if super().match(message, **kwargs) < 0:
             return 0
         text = message.raw_text
         if not isinstance(text, Drafty):
@@ -538,7 +538,7 @@ class _ButtonReplyDispatcher(SessionDispatcher):
                 weakref.finalize(message, self._cache.pop, id(message), None)
                 return self.priority
         return 0
-    
+
     def run(self, message: Message) -> None:
         resp = self._cache[id(message)]
         self.future.set_result(resp)

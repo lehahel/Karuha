@@ -4,6 +4,8 @@ from typing import Dict, Union
 
 from typing_extensions import Self
 
+from karuha.fsm.context import FSMContext
+
 from ..bot import Bot, decode_mapping
 from ..text import BaseText, Drafty
 from ..text.message import Message
@@ -25,7 +27,7 @@ class MessageEvent(BotEvent):
     def __init__(self, bot: Bot, /, topic: str, user_id: str, seq_id: int, head: Dict[str, str], content: bytes) -> None:
         super().__init__(bot)
         self.message = Message.new(bot, topic, user_id, seq_id, head, content)
-    
+
     @classmethod
     def from_data_event(cls, event: DataEvent, /) -> Self:
         message = event.server_message
@@ -37,16 +39,19 @@ class MessageEvent(BotEvent):
             decode_mapping(message.head),
             message.content
         )
-    
+
     async def __default_handler__(self) -> None:
         async with get_message_lock():
-            result = MessageDispatcher.dispatch(self.dump())
+            message = self.dump()
+            fsm_context = FSMContext.from_message(message)
+            fsm_state = await fsm_context.get_state()
+            result = MessageDispatcher.dispatch(message, fsm_state=fsm_state)
         if iscoroutine(result):
             await result
 
     def dump(self) -> Message:
         return self.message
-    
+
     topic: ProxyProperty[str] = MessageProperty()
     user_id: ProxyProperty[str] = MessageProperty()
     seq_id: ProxyProperty[int] = MessageProperty()

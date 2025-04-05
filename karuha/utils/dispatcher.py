@@ -17,7 +17,7 @@ class AbstractDispatcher(_ContextHelper, Generic[T]):
     def __init__(self, *, once: bool = False) -> None:
         self.once = once
 
-    def match(self, message: T, /) -> float:  # pragma: no cover
+    def match(self, message: T, /, **kwargs) -> float:  # pragma: no cover
         """calculate the match for a given message
 
         Matching degree is divided into the following levels:
@@ -28,7 +28,7 @@ class AbstractDispatcher(_ContextHelper, Generic[T]):
             specific transactions should return the value in this range
         4. 3~5: Urgent matters. Only dispatchers that need to handle special urgent matters\
             should return the value in this range.
-        
+
         In principle, only values within the above range should be returned.
         Values less than 0.4 will be ignored by default,
         while there are no specific restrictions on values that are too large.
@@ -39,26 +39,26 @@ class AbstractDispatcher(_ContextHelper, Generic[T]):
         :rtype: float
         """
         return 1
-    
+
     @abstractmethod
     def run(self, message: T, /) -> Any:
         raise NotImplementedError
-    
+
     def activate(self) -> None:
         self.dispatchers.add(self)
-    
+
     def deactivate(self) -> None:
         self.dispatchers.discard(self)
-    
+
     @classmethod
-    def dispatch(cls, message: T, /, threshold: float = 0.4, filter: Optional[Callable[[Self], bool]] = None) -> Optional[Any]:
+    def dispatch(cls, message: T, /, threshold: float = 0.4, filter: Optional[Callable[[Self], bool]] = None, **kwargs) -> Optional[Any]:
         dispatchers = cls.dispatchers
         if filter is not None:
             dispatchers = {d for d in dispatchers if filter(d)}
         if not dispatchers:
             return
         selected, match_rate = max(
-            map(lambda d: (d, d.match(message)), dispatchers),
+            map(lambda d: (d, d.match(message, **kwargs)), dispatchers),
             key=lambda x: x[1],
         )
         if match_rate < threshold:
@@ -66,7 +66,7 @@ class AbstractDispatcher(_ContextHelper, Generic[T]):
         elif selected.once:
             selected.deactivate()
         return selected.run(message)
-    
+
     @property
     def activated(self) -> bool:
         return self in self.dispatchers
@@ -81,7 +81,7 @@ class FutureDispatcher(AbstractDispatcher[T]):
 
     def run(self, message: T, /) -> None:
         self.future.set_result(message)
-    
+
     async def wait(self) -> T:
         self.activate()
         return await self.future
