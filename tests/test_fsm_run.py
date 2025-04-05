@@ -4,7 +4,7 @@ from karuha import on_command
 from karuha.fsm.context import FSMContext
 from karuha.fsm.rule import on_state
 from karuha.fsm.state import State, StatesGroup
-from karuha.fsm.storage import StorageKey
+from karuha.fsm.storage.base import StorageKey
 from karuha.text.message import MessageSession
 from tests.utils import AsyncBotTestCase
 

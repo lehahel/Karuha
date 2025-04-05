@@ -1,8 +1,7 @@
 from typing import Any, Dict, Optional, overload
 
-# from karuha import Message
-# from karuha.text.message import MessageSession
-from .storage import BaseStorage, StateType, StorageKey, get_storage
+from .storage import get_storage
+from .storage.base import StateType, StorageKey
 
 
 class FSMContext:

@@ -4,7 +4,7 @@ from karuha import Message
 from karuha.command import BaseRule
 from karuha.command.decoractor import on_rule
 
-from .storage import StateType
+from .storage.base import StateType
 
 
 class FSMRule(BaseRule):
