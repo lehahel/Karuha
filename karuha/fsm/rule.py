@@ -1,6 +1,5 @@
 from typing import Type
 
-from karuha import Message
 from karuha.command import BaseRule
 from karuha.command.decoractor import on_rule
 
@@ -11,7 +10,7 @@ class FSMRule(BaseRule):
     def __init__(self, state: Type[StateType]) -> None:
         self._target_state = state
 
-    def match(self, message: Message, /, **kwargs) -> float:
+    def match(self, message, /, **kwargs) -> float:
         current_state = kwargs.get("fsm_state", None)
         if current_state is None:
             return 0.0

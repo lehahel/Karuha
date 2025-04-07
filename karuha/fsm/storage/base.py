@@ -2,9 +2,11 @@ import logging
 from abc import ABC, ABCMeta, abstractmethod
 from copy import copy
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Type, Union, overload
+from typing import Any, Dict, Literal, Optional, Type, Union, overload
 
 from ..state import State, StatesGroup
+
+DEFAULT_DESTINY = "default"
 
 StateType = Union[str, None, State, StatesGroup, Type[StatesGroup]]
 
@@ -29,6 +31,64 @@ class StorageKey:
             bot_name=session.bot.name,
             topic=session.topic,
         )
+
+
+class KeyBuilder(ABC):
+    """Base class for key builders"""
+
+    @abstractmethod
+    def build(
+        self,
+        key: StorageKey,
+        part: Literal["state", "data"],
+    ) -> str:
+        """Build a key for a given storage part"""
+        pass
+
+
+class DefaultKeyBuilder(KeyBuilder):
+    """Simple key builder with default prefix."""
+
+    def __init__(
+        self,
+        *,
+        prefix: str = "fsm",
+        separator: str = ":",
+        with_bot_id: bool = False,
+        with_business_connection_id: bool = False,
+        with_destiny: bool = False,
+    ) -> None:
+        self.prefix = prefix
+        self.separator = separator
+        self.with_bot_id = with_bot_id
+        self.with_business_connection_id = with_business_connection_id
+        self.with_destiny = with_destiny
+
+    def build(
+        self,
+        key: StorageKey,
+        part: Optional[Literal["data", "state", "lock"]] = None,
+    ) -> str:
+        parts = [self.prefix]
+        if self.with_bot_id:
+            parts.append(str(key.bot_id))
+        if self.with_business_connection_id and key.business_connection_id:
+            parts.append(str(key.business_connection_id))
+        parts.append(str(key.chat_id))
+        if key.thread_id:
+            parts.append(str(key.thread_id))
+        parts.append(str(key.user_id))
+        if self.with_destiny:
+            parts.append(key.destiny)
+        elif key.destiny != DEFAULT_DESTINY:
+            error_message = (
+                "Default key builder is not configured to use key destiny other than the default."
+                "\n\nProbably, you should set `with_destiny=True` in for DefaultKeyBuilder."
+            )
+            raise ValueError(error_message)
+        if part:
+            parts.append(part)
+        return self.separator.join(parts)
 
 
 class StorageMeta(ABCMeta):
@@ -84,13 +144,7 @@ class BaseStorage(ABC, metaclass=StorageMeta):
     async def update_data(
         self, key: StorageKey, data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """
-        Update date in the storage for key (like dict.update)
-
-        :param key: storage key
-        :param data: partial data
-        :return: new data
-        """
+        """Update date in the storage for key (like dict.update)"""
         current_data = await self.get_data(key=key)
         current_data.update(data)
         await self.set_data(key=key, data=current_data)
