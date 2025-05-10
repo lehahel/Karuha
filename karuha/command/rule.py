@@ -17,18 +17,18 @@ class BaseRule(ABC):
     __slots__ = []
 
     @abstractmethod
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         """
         Returns a score between 0 and 1 indicating how well the rule matches the message.
         """
         raise NotImplementedError
-    
+
     def __and__(self, other: "BaseRule") -> "AndRule":
         return AndRule(self, other)
-    
+
     def __or__(self, other: "BaseRule") -> "OrRule":
         return OrRule(self, other)
-    
+
     def __invert__(self) -> "NotRule":
         return NotRule(self)
 
@@ -62,14 +62,14 @@ class AndRule(BaseRule):
     def __init__(self, *rules: BaseRule) -> None:
         self.rules = rules
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         score = 1.0
         for rule in self.rules:
-            score *= rule.match(message)
+            score *= rule.match(message, **kwargs)
             if score <= 0.0:
                 break
         return score
-    
+
     def __iand__(self, other: BaseRule) -> Self:
         self.rules += (other,)
         return self
@@ -85,11 +85,11 @@ class OrRule(BaseRule):
     def __init__(self, *rules: BaseRule) -> None:
         self.rules = rules
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         scores = [0.0]
-        scores.extend(rule.match(message) for rule in self.rules)
+        scores.extend(rule.match(message, **kwargs) for rule in self.rules)
         return max(scores)
-    
+
     def __ior__(self, other: BaseRule) -> Self:
         self.rules += (other,)
         return self
@@ -105,8 +105,8 @@ class NotRule(BaseRule):
     def __init__(self, rule: BaseRule) -> None:
         self.rule = rule
 
-    def match(self, message: Message, /) -> float:
-        return max(1.0 - self.rule.match(message), 0.0)
+    def match(self, message: Message, /, **kwargs) -> float:
+        return max(1.0 - self.rule.match(message, **kwargs), 0.0)
 
 
 class TopicRule(BaseRule):
@@ -119,7 +119,7 @@ class TopicRule(BaseRule):
     def __init__(self, topic: str) -> None:
         self.topic = topic
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         return 1.0 if message.topic == self.topic else 0.0
 
 
@@ -134,7 +134,7 @@ class SeqIDRule(BaseRule):
         self.topic = topic
         self.seq_id = seq_id
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         return 1.0 if message.seq_id == self.seq_id and message.topic == self.topic else 0.0
 
 
@@ -148,7 +148,7 @@ class UserIDRule(BaseRule):
     def __init__(self, user_id: str) -> None:
         self.user_id = user_id
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         return 1.0 if message.user_id == self.user_id else 0.0
 
 
@@ -161,8 +161,8 @@ class BotRule(BaseRule):
 
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
-    
-    def match(self, message: Message, /) -> float:
+
+    def match(self, message: Message, /, **kwargs) -> float:
         return 1.0 if message.bot is self.bot else 0.0
 
 
@@ -176,7 +176,7 @@ class KeywordRule(BaseRule):
     def __init__(self, keyword: str) -> None:
         self.keyword = keyword
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         return 1.0 if self.keyword in message.text else 0.0
 
 
@@ -190,7 +190,7 @@ class RegexRule(BaseRule):
     def __init__(self, regex: Union[str, re.Pattern]) -> None:
         self.regex = regex if isinstance(regex, re.Pattern) else re.compile(regex)
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         return 1.0 if self.regex.search(message.plain_text) else 0.0
 
 
@@ -204,7 +204,7 @@ class MentionRule(BaseRule):
     def __init__(self, mention: str) -> None:
         self.mention = mention
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         if isinstance(message.raw_text, str):
             return 0.0
         ent = message.raw_text.ent
@@ -219,7 +219,7 @@ class MentionMeRule(BaseSingletonRule):
     __slots__ = []
 
     @staticmethod
-    def match(message: Message, /) -> float:
+    def match(message: Message, /, **kwargs) -> float:
         if isinstance(message.raw_text, str):
             return 0.0
         uid = message.bot.user_id
@@ -235,8 +235,8 @@ class ToMeRule(BaseSingletonRule):
     __slots__ = []
 
     @staticmethod
-    def match(message: Message, /) -> float:
-        return 1.0 if message.topic.startswith("usr") else MentionMeRule.match(message)
+    def match(message: Message, /, **kwargs) -> float:
+        return 1.0 if message.topic.startswith("usr") else MentionMeRule.match(message, **kwargs)
 
 
 class QuoteRule(BaseRule):
@@ -250,7 +250,7 @@ class QuoteRule(BaseRule):
         self.mention = mention
         self.reply = reply
 
-    def match(self, message: Message, /) -> float:
+    def match(self, message: Message, /, **kwargs) -> float:
         if isinstance(message.text, str):  # pragma: no cover
             return 0.0
         elif self.reply is not None:
@@ -279,8 +279,8 @@ class HasHead(BaseRule):
 
     def __init__(self, name: str) -> None:
         self.name = name
-    
-    def match(self, message: Message, /) -> float:
+
+    def match(self, message: Message, /, **kwargs) -> float:
         return 1.0 if self.name in message.head else 0.0
 
 
@@ -292,9 +292,9 @@ class NoopRule(BaseSingletonRule):
     __slots__ = []
 
     @staticmethod
-    def match(message: Message, /) -> float:
+    def match(message: Message, /, **kwargs) -> float:
         return 1.0
-    
+
     def __and__(self, other: BaseRule) -> BaseRule:
         return other
 
@@ -307,8 +307,8 @@ class MessageRuleDispatcher(MessageDispatcher):
         self.rule = rule
         self.weights = weights
 
-    def match(self, message: Message, /) -> float:
-        return self.rule.match(message) * self.weights
+    def match(self, message: Message, /, **kwargs) -> float:
+        return self.rule.match(message, **kwargs) * self.weights
 
 
 def rule(
